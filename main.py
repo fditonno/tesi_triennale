@@ -1,74 +1,59 @@
+import matplotlib.pyplot as plt
 import numpy as np
+from scipy.special import erf
 from equazioni_differenziali import Runge_Kutta_secondo_ordine as RK
 
-class GW: #onda gravitazionale che si propaga in direzione generica
-    def __init__(self, theta, phi, a, b, omega): #basterà modificare il costruttore per aggiungere o togliere parametri necessari alle funzioni plus e cross
-        self.theta = theta #angolo della direzione di propagazione rispetto all'asse x
-        self.phi = phi #angolo della direzione di propagazione rispetto all'asse z
-        self.a = a
-        self.b = b
-        self.omega = omega
 
-    def plus(self, t): #derivata seconda rispetto al tempo della funzione che descrive l'andamento di h+ nel tempo (messa a caso per ora)
-        return self.a*np.sin(self.omega*t)
+class GW: #onda gravitazionale
+    def __init__(self):
+        #qui si inseriscono i parametri relativi all'onda
+        self.A = 10**-21 #ampiezza dell'onda gravitazionale (strain)
+        self.omega = 3 #pulsazione dell'onda (MHz)
 
-    def cross(self, t): #derivata seconda rispetto al tempo della funzione che descrive l'andamento di hx nel tempo (messa a caso per ora)
-        return self.b*np.cos(self.omega*t)
+    def h(self, t): #derivata seconda rispetto al tempo della funzione che descrive l'andamento di h nel tempo
+        #considero h come uno scalare oscillante nel tempo dato che comunque servirà solamente una componenete
+        return self.A*(self.omega**2)*np.cos(self.omega*t) #qualsiasi componente potrà sempre essere scritta così
+    
 
-    def h(self, t): #darivata seconda rispetto al tempo del tensore h
-        p = self.plus(t)
-        c = self.cross(t)
+class BAW: #classe che descrive le proprietà del cristallo e del modo di vibrazione scelto
+    def __init__(self):
+        #qui si inseriscono i parametri relativi al cristallo e al modo di vibrazione
+        self.d = 1 #spessore del cristallo (millimetri)
+        self.n = 3 #n del modo di vibrazione scelto (m=0, p=0)
+        self.omega =  5.175 #pulsazione del modo di vibrazione scelto (MHz)
+        self.gamma = 10**-8 #coefficente di smorzamento del modo scelto (MHz)
+        self.eta_x = 10 #trapping parameter per l'asse x
+        self.eta_y = 10 #trapping parameter per l'asse y
 
-        sin_phi = np.sin(self.phi)
-        cos_phi = np.cos(self.phi)
-        sin_theta = np.sin(self.theta)
-        cos_theta = np.cos(self.theta)
+    def xi(self): #calcolo del parametro di accoppiamento onda-cavità (n dispari, m=p=0)
+        costante = 16/((self.n**2)*(np.pi**2))
+        numeratore = erf(np.sqrt(self.n)*self.eta_x)*erf(np.sqrt(self.n)*self.eta_y)
+        denominatore = erf(np.sqrt(2*self.n)*self.eta_x)*erf(np.sqrt(2*self.n)*self.eta_y)
+        return (self.d/2)*costante*numeratore/denominatore
 
-        h00 = p*(sin_phi*sin_theta + cos_phi)
-        h01 = c*cos_phi
-        h02 = c*sin_phi*sin_theta
-        h11 = p*(sin_phi*cos_theta - cos_phi)
-        h12 = c*sin_phi*cos_theta
-        h22 = -p*(sin_phi*cos_theta + sin_phi*sin_theta)
-        h = [ #è simmetrica
-            [h00, h01, h02],
-            [h01, h11, h12],
-            [h02, h12, h22]]
-        return h
-
-def f(t, x, y, onda, i, j, omega, gamma, xi): #funzione che compare nell'equazione differenziale scritta nella forma x"=f(t, x, x')
+    
+def f(t, x, y, onda, omega, gamma, xi): #funzione che compare nell'equazione differenziale scritta nella forma x"=f(t, x, y) dove y=x'
     '''
-    i e j sono gli indici per i tensori
     omega e gamma sono la pulsazione e la larghezza di banda del modo normale considerato
-    xi è il tensore che dà l'accoppiamento tra l'onda e la cavità
+    xi è il termine di accoppiamento tra la cavità e l'onda gravitazionale
     '''
-    h = onda.h(t) #derivata seconda rispetto al tempo del tensore h, rappresenta la forza apparente esercitata sul cristallo dall'onda
-    return (h[i][j]*xi[i][j])/2 - gamma*y - (omega**2)*x
-
-def risolvi(t_fine, t0, N, x0, dev_x0, y0, dev_y0, onda, cristallo, X, n): #funzione che restituisce la soluzione dell'equazione differenziale per un certo modo di vibrazione
-    '''
-    t_fine e t0 sono gli estremi dell'intervallo in cui si vuole la soluzione
-    N è il numero di punti in cui si vuole l'approssimazione della soluzione, più è grande più l'approssimazione è precisa
-    x_0 è x(t=t0) e y(0) è x'(t=t0), dev_x0 e dev_y0 sono le deviazioni standard associate a questi valori
-    X definisce il modo di vibrazione: X=0 modo A, X=1 modo B, X=2 modo C
-    n è numero dell'armonica considerato
-    '''
-    passo = (t_fine-t0)/N
-    j=2 #le componenti di xi sono diverse da 0 solo se j=2
-    i=X #gli spostamenti dalle posizioni di equilibrio per il modo A sono dirette lungo x, per il modo B lungo y e per il modo C lungo z
-    #calcolo omega, gamma e xi fuori da f per evitare che vengano ricalcolate ad ogni iterazione di RK
-    omega = cristallo.omega(X, n) #devo ancora scrivere la classe cristallo
-    gamma = cristallo.gamma(X, n)
-    xi = cristallo.xi(X, n)
-    return RK(t_fine, t0, passo, x0, dev_x0, y0, dev_y0, f, onda, i, j, omega, gamma, xi)
+    return (onda.h(t)*xi)/2 - gamma*y - (omega**2)*x
 
 
-#parametri onda
-phi = 0 #onda diretta lungo z
-theta = 0
-a = 2
-b = 1
-omega = 3
+#parametri per Runge Kutta
+t_fine = 20 #tempo di fine (miro secondi)
+t_inizio = 0 #tempo di inizio (micro secondi)
+N = 10000 #numero di punti che si vuole usare per l'approssimazione
+x0 = 0 #B(t_inzio) (millimetri)
+y0 = 0 #B'(t_inzio) (millimetri)
 
-onda = GW(theta, phi, a, b, omega)
-print(onda.h(1))
+onda = GW()
+cristallo = BAW()
+t, B, _ = RK(t_fine, t_inizio, (t_fine-t_inizio)/N, x0, y0, f, onda=onda, omega=cristallo.omega, gamma=cristallo.gamma, xi=cristallo.xi())
+
+fig, ax = plt.subplots (nrows = 1, ncols = 1)
+ax.set_xlabel("μs")
+ax.set_ylabel("mm") #B ha l'unità di misura di una lunghezza invece U è adimensionale
+ax.plot(t, B, label="B(t)", color = 'blue')
+ax.legend()
+plt.show()
