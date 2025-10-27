@@ -62,12 +62,12 @@ def f(t, x, y, onda, omega, gamma, xi): #funzione che compare nell'equazione dif
 t_fine = 20 #tempo di fine (miro secondi)
 t_inizio = 0 #tempo di inizio (micro secondi)
 N = 10000 #numero di punti che si vuole usare per l'approssimazione
-x0 = 0 #B(t_inzio) (millimetri)
-y0 = 0 #B'(t_inzio) (millimetri)
+B_0 = 0 #B(t_inzio) (millimetri)
+dB_0 = 0 #B'(t_inzio) (millimetri/micro secondi)
 
 onda = GW()
 cristallo = BAW()
-t, B, dB = RK(t_fine, t_inizio, (t_fine-t_inizio)/N, x0, y0, f, onda=onda, omega=cristallo.omega, gamma=cristallo.gamma, xi=cristallo.xi())
+t, B, dB = RK(t_fine, t_inizio, (t_fine-t_inizio)/N, B_0, dB_0, f, onda=onda, omega=cristallo.omega, gamma=cristallo.gamma, xi=cristallo.xi())
 
 fig, ax = plt.subplots (nrows = 1, ncols = 1)
 ax.set_xlabel("μs")
