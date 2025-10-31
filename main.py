@@ -7,12 +7,27 @@ from equazioni_differenziali import Runge_Kutta_secondo_ordine as RK
 class GW: #onda gravitazionale
     def __init__(self):
         #qui si inseriscono i parametri relativi all'onda
-        self.A = 10**-21 #ampiezza dell'onda gravitazionale (strain)
-        self.omega = 5 #pulsazione dell'onda (MHz)
+        self.a = (1/20)*10**-21 #coefficiente angolare della crescita dell'ampiezza dell'onda (strain/microS)
+        self.b = 1/5 #coefficiente angolare della crescita della pulsazione dell'onda (MHz**2)
 
-    def h(self, t): #derivata seconda rispetto al tempo della funzione che descrive l'andamento di h nel tempo
+    def pulsazione(self, t): #funzione che descrive l'andamento della pulsazione dell'onda nel tempo
+        #per ora ho messo una crescita lineare
+        return self.b*t
+
+    def ampiezza(self, t): #funzione che descrive l'andamento dell'ampiezza dell'onda nel tempo
+        #per ora ho messo una crescita lineare
+        return self.a*t
+
+    def h(self, t): #funzione che descrive l'andamento di h nel tempo
         #considero h come uno scalare oscillante nel tempo dato che comunque servirà solamente una componenete
-        return self.A*(self.omega**2)*np.cos(self.omega*t) #qualsiasi componente potrà sempre essere scritta così
+        omega = self.pulsazione(t)
+        A = self.ampiezza(t)
+        return A*np.cos(omega*t) #qualsiasi componente potrà sempre essere scritta così
+
+    def ddh(self, t): #derivata seconda rispetto al tempo della funzione che descrive l'andamento di h nel tempo
+        omega = self.pulsazione(t)
+        A = self.ampiezza(t)
+        return A*(omega**2)*np.cos(omega*t) #per ora non ho considerato che A e omega dipendono dal tempo nella derivata
     
 
 class BAW: #classe che descrive le proprietà del cristallo e del modo di vibrazione scelto
@@ -21,11 +36,12 @@ class BAW: #classe che descrive le proprietà del cristallo e del modo di vibraz
         self.d = 1 #spessore del cristallo (millimetri)
         self.L = 7 #raggio del cristallo (millimetri)
         self.R = 600 #raggio di curvatura della superficie del cristallo (millimetri)
+        self.k = 10 #coefficiente piezzoelettrico (microC/mm) (è temporaneo)
         
         #qui si inseriscono i parametri relativi al modo di vibrazione scelto
-        self.n = 3 #n del modo di vibrazione scelto (m=0, p=0)
-        self.omega =  5.175 #pulsazione del modo di vibrazione scelto (MHz)
-        self.gamma = 5*10**-7 #coefficente di smorzamento del modo scelto, ho stimato l'ordine di grandezza facendo omega/Q (MHz)
+        self.n = 1 #n del modo di vibrazione scelto (m=0, p=0)
+        self.omega =  2 #pulsazione del modo di vibrazione scelto (MHz)
+        self.gamma = 2*10**-7 #coefficente di smorzamento del modo scelto, ho stimato l'ordine di grandezza facendo omega/Q (MHz)
         self.chi_x = 250 #ho stimato l'ordine di grandezza da eta_x=10 (adimensionale)
         self.chi_y = 250 #ho stimato l'ordine di grandezza da eta_y=10 (adimensionale)
 
@@ -49,13 +65,20 @@ class BAW: #classe che descrive le proprietà del cristallo e del modo di vibraz
         denominatore = erf(np.sqrt(2*self.n)*eta_x)*erf(np.sqrt(2*self.n)*eta_y)
         return (self.d/2)*costante*numeratore/denominatore
 
+    def corrente(self, dB): #funzione che restiruisce la corrente prodotta dal cristallo data la derivata rispetto al tempo del displacement (dB)
+        #è temporanea
+        I = []
+        for i in dB:
+            I.append(self.k*i)
+        return I
+
     
 def f(t, x, y, onda, omega, gamma, xi): #funzione che compare nell'equazione differenziale scritta nella forma x"=f(t, x, y) dove y=x'
     '''
     omega e gamma sono la pulsazione e la larghezza di banda del modo normale considerato
     xi è il termine di accoppiamento tra la cavità e l'onda gravitazionale
     '''
-    return (onda.h(t)*xi)/2 - gamma*y - (omega**2)*x
+    return (onda.ddh(t)*xi)/2 - gamma*y - (omega**2)*x
 
 
 #parametri per Runge Kutta
@@ -67,12 +90,46 @@ dB_0 = 0 #B'(t_inzio) (millimetri/micro secondi)
 
 onda = GW()
 cristallo = BAW()
+#calcolo il displacement (B) e la derivata rispetto al tempo di B (dB)
 t, B, dB = RK(t_fine, t_inizio, (t_fine-t_inizio)/N, B_0, dB_0, f, onda=onda, omega=cristallo.omega, gamma=cristallo.gamma, xi=cristallo.xi())
+I = cristallo.corrente(dB) #calcolo la corrente prodotta dal cristallo
 
+#grafico della pulsazione dell'onda
 fig, ax = plt.subplots (nrows = 1, ncols = 1)
-ax.set_xlabel("μs")
-ax.set_ylabel("mm") #B ha l'unità di misura di una lunghezza invece U è adimensionale
-ax.plot(t, B, label="B(t)", color = 'blue')
-#ax.plot(t, dB, label="dB(t)", color = 'green')
+ax.set_title("Pulsazione dell'onda")
+ax.set_xlabel("Tempo (μs)")
+ax.set_ylabel("Pulsazione (MHz)")
+x = np.linspace(20, 0, 10000)
+y = []
+for i in x:
+    y.append(onda.pulsazione(i))
+ax.plot(x, y, label="onda", color = 'blue')
+ax.axhline(y=cristallo.omega, label="cristallo", color='r', linestyle='--', linewidth=2)
 ax.legend()
+
+#grafico dell'onda
+fig, ax = plt.subplots (nrows = 1, ncols = 1)
+ax.set_title("Onda (h)")
+ax.set_xlabel("Tempo (μs)")
+ax.set_ylabel("Strain")
+x = np.linspace(20, 0, 10000)
+y = []
+for i in x:
+    y.append(onda.h(i))
+ax.plot(x, y, color = 'blue')
+
+#grafico del displacement
+fig, ax = plt.subplots (nrows = 1, ncols = 1)
+ax.set_title("Displacement (B)")
+ax.set_xlabel("Tempo (μs)")
+ax.set_ylabel("Displacement (mm)") #B ha l'unità di misura di una lunghezza invece U è adimensionale
+ax.plot(t, B, color = 'blue')
+
+#grafico della corrente
+fig, ax = plt.subplots (nrows = 1, ncols = 1)
+ax.set_title("Segnale")
+ax.set_xlabel("Tempo (μs)")
+ax.set_ylabel("Corrente (A)")
+ax.plot(t, I, color = 'blue')
+
 plt.show()
