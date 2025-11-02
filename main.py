@@ -34,14 +34,15 @@ class BAW: #classe che descrive le proprietà del cristallo e del modo di vibraz
     def __init__(self):
         #qui si inseriscono i parametri relativi al cristallo
         self.d = 1 #spessore del cristallo (millimetri)
-        self.L = 7 #raggio del cristallo (millimetri)
+        self.L = 14 #raggio del cristallo (millimetri)
+        self.l = 7 #raggio degli elettrodi (millimetri)
         self.R = 600 #raggio di curvatura della superficie del cristallo (millimetri)
-        self.k = 10 #coefficiente piezzoelettrico (microC/mm) (è temporaneo)
+        self.e = 0.1 #coefficiente piezzoelettrico effettivo (C/m**2) (è temporaneo)
         
         #qui si inseriscono i parametri relativi al modo di vibrazione scelto
         self.n = 1 #n del modo di vibrazione scelto (m=0, p=0)
         self.omega =  2 #pulsazione del modo di vibrazione scelto (MHz)
-        self.gamma = 2*10**-7 #coefficente di smorzamento del modo scelto, ho stimato l'ordine di grandezza facendo omega/Q (MHz)
+        self.gamma = 2*10**-8 #coefficente di smorzamento del modo scelto, ho stimato l'ordine di grandezza facendo omega/Q (MHz)
         self.chi_x = 250 #ho stimato l'ordine di grandezza da eta_x=10 (adimensionale)
         self.chi_y = 250 #ho stimato l'ordine di grandezza da eta_y=10 (adimensionale)
 
@@ -65,11 +66,19 @@ class BAW: #classe che descrive le proprietà del cristallo e del modo di vibraz
         denominatore = erf(np.sqrt(2*self.n)*eta_x)*erf(np.sqrt(2*self.n)*eta_y)
         return (self.d/2)*costante*numeratore/denominatore
 
+    #referenza 41
+    def mu(self): #fattore di overlap degli elettrodi (m=0, p=0)
+        vx = np.sqrt(np.pi*self.alfa())*self.l
+        vy = np.sqrt(np.pi*self.beta())*self.l
+        return erf(np.sqrt(self.n/2)*vx) * erf(np.sqrt(self.n/2)*vy)
+        
     def corrente(self, dB): #funzione che restiruisce la corrente prodotta dal cristallo data la derivata rispetto al tempo del displacement (dB)
-        #è temporanea
+        numeratore = np.pi*self.mu()
+        denominatore = np.sqrt(self.alfa()*self.beta())*self.d/2
+        cost = self.e * numeratore/denominatore
         I = []
         for i in dB:
-            I.append(self.k*i)
+            I.append(cost*i)
         return I
 
     
