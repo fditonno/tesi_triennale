@@ -1,13 +1,16 @@
 #Libreria che implementa i metodi di risuluzione numerica delle equazioni differenziali
 
 import numpy as np
+from scipy.integrate import solve_ivp
+from scipy.integrate import odeint
 
-def Eulero_primo_ordine(t_fine, t0, h, x0, f, **parametri):
+def Eulero_primo_ordine(t_fine, t0, N, x0, f, **parametri):
     '''
     Funzione che utilizza il metodo di Eulero per approssimare la soluizione di un'equazione differenziale del tipo:
     x' = f(t, x, **parametri) con x(t0)=x0
-    t_fine e t0 sono gli estremi dell'intervallo in cui si vuole approssimare la soluzione e h è il passo.
+    t_fine e t0 sono gli estremi dell'intervallo in cui si vuole approssimare la soluzione e N è il numero di punti che si usa per l'approssimazione.
     '''
+    h=(t_fine-t0)/N #calcolo il passo
     t=np.arange(t0, t_fine+h, h)
     x=[x0]
     for i in range(1, len(t), 1):
@@ -15,12 +18,13 @@ def Eulero_primo_ordine(t_fine, t0, h, x0, f, **parametri):
         x.append(x[i-1] + h*k) #approssimo il valore assunto dalla funzione x al tempo t[i] con il valore assunto dalla retta tangente al tempo t[i]
     return t, x
 
-def Runge_Kutta_primo_ordine(t_fine, t0, h, x0, f, **parametri):
+def Runge_Kutta_primo_ordine(t_fine, t0, N, x0, f, **parametri):
     '''
     Funzione che utilizza il metodo Runge Kutta di quarto ordine (RK4) per approssimare la soluizione di un'equazione differenziale del tipo:
     x' = f(t, x, **parametri) con x(t0)=x0
-    t_fine e t0 sono gli estremi dell'intervallo in cui si vuole approssimare la soluzione e h è il passo.
+    t_fine e t0 sono gli estremi dell'intervallo in cui si vuole approssimare la soluzione e N è il numero di punti che si usa per l'approssimazione.
     '''
+    h=(t_fine-t0)/N #calcolo il passo
     t=np.arange(t0, t_fine+h, h)
     x=[x0]
     for i in range(1, len(t), 1):
@@ -34,17 +38,18 @@ def Runge_Kutta_primo_ordine(t_fine, t0, h, x0, f, **parametri):
         x.append(x[i-1] + h*k)
     return t, x
 
-def Eulero_secondo_ordine(t_fine, t0, h, x0, y0, f, **parametri):
+def Eulero_secondo_ordine(t_fine, t0, N, x0, y0, f, **parametri):
     '''
     Funzione che utilizza il metodo di Eulero per approssimare la soluizione di un'equazione differenziale del tipo:
     x'' = f(t, x, x', **parametri) con x(t0)=x0 e x'(t0)=y0
-    t_fine e t0 sono gli estremi dell'intervallo in cui si vuole approssimare la soluzione e h è il passo.
+    t_fine e t0 sono gli estremi dell'intervallo in cui si vuole approssimare la soluzione e N è il numero di punti che si usa per l'approssimazione.
     
     L'equazione può essere separata in un sistema di equazioni del primo ordine:
     x' = g(t, x, x')=y (1)
     y' = f(t, x, x', **parametri) (2)
     il metodo di Eulero si appliza approssimando i valori di x e di y passo-passo come fatto in precedenza ma utilizzando g per il calcolo di x e f per il calcolo di y.
     '''
+    h=(t_fine-t0)/N #calcolo il passo
     t=np.arange(t0, t_fine+h, h)
     x=[x0]
     y=[y0]
@@ -58,17 +63,18 @@ def Eulero_secondo_ordine(t_fine, t0, h, x0, y0, f, **parametri):
         y.append(y[i-1] + h*k)
     return t, x, y
 
-def Runge_Kutta_secondo_ordine(t_fine, t0, h, x0, y0, f, **parametri):
+def Runge_Kutta_secondo_ordine(t_fine, t0, N, x0, y0, f, **parametri):
     '''
     Funzione che utilizza il metodo Runge Kutta di quarto ordine (RK4) per approssimare la soluizione di un'equazione differenziale del tipo:
     x'' = f(t, x, x', **parametri) con x(t0)=x0 e x'(t0)=y0
-    t_fine e t0 sono gli estremi dell'intervallo in cui si vuole approssimare la soluzione e h è il passo.
+    t_fine e t0 sono gli estremi dell'intervallo in cui si vuole approssimare la soluzione e N è il numero di punti che si usa per l'approssimazione.
     
     L'equazione può essere separata in un sistema di equazioni del primo ordine:
     x' = g(t, x, x')=y (1)
     y' = f(t, x, x', **parametri) (2)
     il metodo Runge Kutta si appliza approssimando i valori di x e di y passo-passo come fatto in precedenza ma utilizzando g per il calcolo di x e f per il calcolo di y.
     '''
+    h=(t_fine-t0)/N #calcolo il passo
     t=np.arange(t0, t_fine+h, h)
     x=[x0]
     y=[y0]
@@ -91,5 +97,38 @@ def Runge_Kutta_secondo_ordine(t_fine, t0, h, x0, y0, f, **parametri):
         k = np.average([k1, k2, k3, k4], weights=[1, 2, 2, 1])
         y.append(y[i-1] + h*k)
     return t, x, y
-        
+
+
+#funzioni che usano metodi implementati da scipy:
+
+def Runge_Kutta_secondo_ordine_solve_ivp(t_fine, t0, N, x0, y0, f, **parametri):
+    '''
+    Funzione che utilizza solve_ivp per approssimare la soluizione di un'equazione differenziale del tipo:
+    x'' = f(t, x, x', **parametri) con x(t0)=x0 e x'(t0)=y0
+    t_fine e t0 sono gli estremi dell'intervallo in cui si vuole approssimare la soluzione e N è il numero di punti che si usa per l'approssimazione.
+    '''
+    def sistema(t, v): #sistema di ODE da risolvere
+        x, y = v
+        dx_dt = y
+        dy_dt = f(t, x, y, **parametri)
+        return [dx_dt, dy_dt]
+
+    sol = solve_ivp(sistema, [t0, t_fine], [x0, y0], method='Radau', t_eval=np.linspace(t0, t_fine, N)) #metodi: RK45, DOP853, Radau, BDF
+    x, y = sol.y
+    return sol.t.tolist(), x.tolist(), y.tolist()
+
+def Runge_Kutta_secondo_ordine_odeint(t_fine, t0, N, x0, y0, f, **parametri):
+    '''
+    Funzione che utilizza odeint per approssimare la soluizione di un'equazione differenziale del tipo:
+    x'' = f(t, x, x', **parametri) con x(t0)=x0 e x'(t0)=y0
+    t_fine e t0 sono gli estremi dell'intervallo in cui si vuole approssimare la soluzione e N è il numero di punti che si usa per l'approssimazione.
+    '''
+    def sistema(v, t): #sistema di ODE da risolvere
+        x, y = v
+        dx_dt = y
+        dy_dt = f(t, x, y, **parametri)
+        return [dx_dt, dy_dt]
     
+    t = np.linspace(t0, t_fine, N)
+    sol = odeint(sistema, [x0, y0], t)
+    return t.tolist(), sol[:, 0].tolist() , sol[:, 1].tolist()
