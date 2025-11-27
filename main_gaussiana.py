@@ -11,34 +11,28 @@ G = 6.6743e-11 #costante di gravitazione universale (N*m^2/Kg^2)
 class GW: #onda gravitazionale
     def __init__(self):
         #parametri relativi all'onda
-        self.ma = 2e28 #massa del primo oggetto (Kg) un po meno della massa del sole
-        self.mb = 2e28 #massa del secondo oggetto (Kg) un po meno della massa del sole
-        self.D = 1e19 #distanza dal sistema binario (m) dovrebbero essere circa 1000 anni luce
-        self.T = 31e-6 #tempo in cui avviene la funzione degli oggetti (s)
+        self.media = 20e-6 #media della gaussiana (s)
+        self.sigma = 5e-6 #sigma della gaussiana (s)
+        self.A = 1e-25 #ordne di grandezza dell'ampiezza dell'onda
         self.fase = 0 #fase (radianti)
 
-        #calcolo le costanti che compaiono nelle funzioni per evitare di ricalcolarle inutilmente
-        self.massa_chirp = ((self.ma*self.mb)**(3/5)) / ((self.ma+self.mb)**(1/5)) #massa di chirp del sistema
-        self.cost_f = (G*self.massa_chirp/(c**3))**(-5/8) #costante che compare nella funzione frequenza e nelle sue derivate
-        self.cost_A = (1/self.D) * ((G*self.massa_chirp/(c**2))**(5/3)) * ((np.pi/c)**(2/3)) #costante che compare nella funzione ampiezza e nelle sue derivate
-
     def frequenza(self, t): #funzione che descrive la variazione della frequenza dell'onda nel tempo
-        return self.cost_f * ((self.T-t)**(-3/8))
+        return 5e6
 
     def d_frequenza(self, t): #derivata prima della funzione che descrive la variazione della frequenza dell'onda nel tempo
-        return (3/8) * self.cost_f * ((self.T - t)**(-11/8))
+        return 0
 
     def dd_frequenza(self, t): #derivata seconda della funzione che descrive la variazione della frequenza dell'onda nel tempo
-        return (33/64) * self.cost_f * ((self.T - t)**(-19/8))
+        return 0
 
     def ampiezza(self, t): #funzione che descrive la variazione dell'ampiezza dell'onda nel tempo
-        return self.cost_A * (self.frequenza(t)**(2/3))
+        return (self.A/np.sqrt(2*np.pi*(self.sigma**2))) * np.exp(-(1/2)*((t-self.media)/self.sigma)**2)
 
     def d_ampiezza(self, t): #derivata prima della funzione che descrive la variazione dell'ampiezza dell'onda nel tempo
-        return (2/3) * self.cost_A * (self.frequenza(t)**(-1/3)) * self.d_frequenza(t)
+        return self.ampiezza(t) * (-(t-self.media)/(self.sigma**2))
 
     def dd_ampiezza(self, t): #derivata seconda della funzione che descrive la variazione dell'ampiezza dell'onda nel tempo
-        return (2/3)*self.cost_A * (((-1/3) * (self.frequenza(t)**(-4/3)) * (self.d_frequenza(t)**2)) + (self.frequenza(t)**(-1/3) * self.dd_frequenza(t)))
+        return -self.ampiezza(t)/(self.sigma**2) - ((t-self.media)/(self.sigma**2)) * self.d_ampiezza(t)
 
     def h(self, t): #funzione che descrive l'andamento di h nel tempo
         return self.ampiezza(t)*np.cos(2*np.pi*self.frequenza(t)*t + self.fase)
@@ -164,7 +158,7 @@ def scarto(t, B, dB, onda, cristallo): #scarto relativo tra la parte sinistra e 
     return somma/len(t) #divido la somma per il numero di punti per normalizzare
 
 #valori iniziali
-t_fine = 30e-6 #tempo di fine (s)
+t_fine = 80e-6 #tempo di fine (s)
 t_inizio = 0 #tempo di inizio (s)
 B_0 = 0 #B(t_inzio) (m)
 dB_0 = 0 #B'(t_inzio) (m/s)
@@ -172,7 +166,7 @@ dB_0 = 0 #B'(t_inzio) (m/s)
 #parametri per Runge Kutta
 N=100000 #numero di punti in cui si vuole la soluzione, non influisce sulla precisione di RK
 rtol = 1e-8 #errore relativo massimo che si vuole sui punti della soluzione (1e-8 è il valore che sembra funzionare meglio)
-atol = rtol*1e-22 #errore assoluto massimo che si vuole sui punti della soluzione
+atol = rtol*1e-23 #errore assoluto massimo che si vuole sui punti della soluzione (errore relativo * ordine di grandezza di B)
 
 onda = GW()
 cristallo = BAW()
