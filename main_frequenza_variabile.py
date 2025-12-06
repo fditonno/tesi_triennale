@@ -1,4 +1,4 @@
-#in questo file simulo il segnale generato dalla fusione di 2 buchi neri con una massa di 4e-3 masse solari ad una distanza di 1e5 anni luce
+#in questo file simulo il segnale generato da un'onda gravitazionale ad ampiezza costante e frequenza variabile
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -6,47 +6,34 @@ from scipy.special import erf
 from scipy.signal import spectrogram
 import equazione_differenziale as ode
 
-#costanti fisiche
-c = 299792458 #velocità della luce (m/s)
-G = 6.6743e-11 #costante di gravitazione universale (N*m^2/Kg^2)
-ly = 9.461e15 #anno luce (m)
-M_sol = 1.989e30 #massa del sole (Kg)
-
 class GW: #onda gravitazionale
     def __init__(self):
         #parametri relativi all'onda
-        self.ma = 4e-3 * M_sol #massa del primo oggetto (Kg)
-        self.mb = 4e-3 * M_sol #massa del secondo oggetto (Kg)
-        self.D = 1e5 * ly #distanza dal sistema binario (m)
-        self.T = 31e-6 #tempo in cui avviene la funzione degli oggetti (s)
-        self.fase_iniziale = 0 #fase a t=t_inizio (radianti)
-
-        #calcolo le costanti che compaiono nelle funzioni per evitare di ricalcolarle inutilmente
-        self.massa_chirp = ((self.ma*self.mb)**(3/5)) / ((self.ma+self.mb)**(1/5)) #massa di chirp del sistema
-        self.cost_f = (G*self.massa_chirp/(c**3))**(-5/8) #costante che compare nella funzione frequenza e nelle sue derivate
-        self.cost_A = (1/self.D) * ((G*self.massa_chirp/(c**2))**(5/3)) * ((np.pi/c)**(2/3)) #costante che compare nella funzione ampiezza e nelle sue derivate
+        self.m = -0.5e6/3e-5
+        self.q = 5e6 + 2.5e5
+        self.fase_iniziale = 0 #fase al tempo iniziale (radianti)
 
     def frequenza(self, t): #funzione che descrive la variazione della frequenza dell'onda nel tempo
-        return self.cost_f * ((self.T-t)**(-3/8))
+        return self.m*t + self.q
 
     def d_frequenza(self, t): #derivata prima della funzione che descrive la variazione della frequenza dell'onda nel tempo
-        return (3/8) * self.cost_f * ((self.T - t)**(-11/8))
+        return self.m
 
     def dd_frequenza(self, t): #derivata seconda della funzione che descrive la variazione della frequenza dell'onda nel tempo
-        return (33/64) * self.cost_f * ((self.T - t)**(-19/8))
+        return 0
 
     def ampiezza(self, t): #funzione che descrive la variazione dell'ampiezza dell'onda nel tempo
-        return self.cost_A * (self.frequenza(t)**(2/3))
+        return 1e-21 #ampiezza (strain)
 
     def d_ampiezza(self, t): #derivata prima della funzione che descrive la variazione dell'ampiezza dell'onda nel tempo
-        return (2/3) * self.cost_A * (self.frequenza(t)**(-1/3)) * self.d_frequenza(t)
+        return 0
 
     def dd_ampiezza(self, t): #derivata seconda della funzione che descrive la variazione dell'ampiezza dell'onda nel tempo
-        return (2/3)*self.cost_A * (((-1/3) * (self.frequenza(t)**(-4/3)) * (self.d_frequenza(t)**2)) + (self.frequenza(t)**(-1/3) * self.dd_frequenza(t)))
+        return 0
 
     def fase(self, t, t_inizio): #fase al tempo t, ovvero integrale tra t_inizio e t in dtau di 2*np.pi*frequenza(tau) + fase_iniziale
         def integrale(tau):
-            return (2*np.pi) * (-8/5) * self.cost_f * ((self.T-tau)**(5/8))
+            return (2*np.pi) * ((self.m*(tau**2)/2) + (self.q*tau)) 
         return integrale(t) - integrale(t_inizio) + self.fase_iniziale
 
     def h(self, t, t_inizio): #funzione che descrive l'andamento di h nel tempo
@@ -106,18 +93,10 @@ t, B, dB = ode.risolvi_RK(t_fine, t_inizio, B_0, dB_0, N, rtol, atol, onda, cris
 I = cristallo.corrente(dB) #calcolo la corrente prodotta dal cristallo
 
 
-#grafici dell'onda gravitazioale
-fig, ax = plt.subplots(nrows = 2, ncols = 1, sharex=True)
+#grafici
+fig, ax = plt.subplots(nrows = 3, ncols = 1, sharex=True)
 x = np.linspace(t_inizio, t_fine, N)
-ax[1].set_xlabel("t - t_merging [s]")
-
-#grafico di h
-ax[1].set_ylabel("h [strain]")
-ax[1].grid(True)
-y = []
-for i in x:
-    y.append(onda.h(i, t_inizio))
-ax[1].plot(x-onda.T, y, color = 'green')
+ax[2].set_xlabel("Tempo [s]")
 
 #grafico della frequenza
 ax[0].set_ylabel("Frequenza [Hz]")
@@ -125,61 +104,39 @@ ax[0].grid(True)
 y = []
 for i in x:
     y.append(onda.frequenza(i))
-ax[0].plot(x-onda.T, y, color = 'green')
+ax[0].plot(x, y, color = 'green')
 
 #linea che corrisponde alla frequenza di risonanza
 i=0
-while(2*np.pi*y[i] < cristallo.omega):
+while(2*np.pi*y[i] > cristallo.omega):
     indice_linea = i
     i = i+1
 x_linea = np.mean([x[indice_linea], x[indice_linea+1]])
-ax[0].axvline(x_linea-onda.T, linestyle='--', color = 'red', label="risonanza")
-ax[1].axvline(x_linea-onda.T, linestyle='--', color = 'red', label="risonanza")
+ax[0].axvline(x_linea, linestyle='--', color = 'red', label="risonanza")
 ax[0].legend(loc='upper left')
-ax[1].legend(loc='upper left')
-
-
-#grafici del segnale
-fig, ax = plt.subplots(nrows = 2, ncols = 1, sharex=True)
-ax[1].set_xlabel("t - t_merging [s]")
 
 #grafico del displacement
-ax[0].set_ylabel("Displacement [m]") #B ha l'unità di misura di una lunghezza invece U è adimensionale
-ax[0].grid(True)
-ax[0].plot(t-onda.T, B, color = 'blue')
-ax[0].axvline(x_linea-onda.T, linestyle='--', color = 'red', label="risonanza")
-ax[0].legend(loc='upper left')
-
-#grafico della corrente
-ax[1].set_ylabel("Corrente [A]")
+ax[1].set_ylabel("Displacement [m]") #B ha l'unità di misura di una lunghezza invece U è adimensionale
 ax[1].grid(True)
-ax[1].plot(t-onda.T, I, color = 'blue')
-ax[1].axvline(x_linea-onda.T, linestyle='--', color = 'red', label="risonanza")
+ax[1].plot(t, B, color = 'blue')
+ax[1].axvline(x_linea, linestyle='--', color = 'red', label="risonanza")
 ax[1].legend(loc='upper left')
 
-#spettrogramma
-fig, ax = plt.subplots (nrows = 1, ncols = 1)
-ax.set_title("Spettrogramma del segnale in corrente")
-ax.set_xlabel("t - t_merging [s]")
-ax.grid(True)
-frequenza, tempi, Sxx = spectrogram(np.array(I), N/(t_fine-t_inizio), scaling='spectrum', mode='magnitude', window = 'hann', nperseg=32768, nfft = 32768, noverlap=32768*8//10)
-ax.set_ylabel('Frequenza [Hz]')
-ax.set_xlim([t_inizio-onda.T, t_fine-onda.T])
-ax.set_ylim([0, 1.5e7])
-pcm = ax.pcolormesh(tempi-onda.T, frequenza, Sxx, shading='gouraud')
-fig.colorbar(pcm, ax=ax, label='Ampiezza [A]')
-ax.axvline(x_linea-onda.T, linestyle='--', color = 'red', label="risonanza")
-ax.plot(x-onda.T, y, color = 'green', label="frequenza dell'onda")
-ax.legend(loc='upper left')
+#grafico della corrente
+ax[2].set_ylabel("Corrente [A]")
+ax[2].grid(True)
+ax[2].plot(t, I, color = 'blue')
+ax[2].axvline(x_linea, linestyle='--', color = 'red', label="risonanza")
+ax[2].legend(loc='upper left')
 
 
 #grafico dello scarto
 y, scarto = ode.scarto(t, B, dB, onda, cristallo) #lo scarto è circa sovrastimato di un'ordine di grandezza usando N=1000000
 print(scarto)
 fig, ax = plt.subplots (nrows = 1, ncols = 1)
-ax.set_xlabel("t - t_merging [s]")
+ax.set_xlabel("Tempo [s]")
 ax.set_yscale("log")
 ax.set_ylabel("Scarto relativo")
-ax.plot(t-onda.T, y, color = 'orange')
+ax.plot(t, y, color = 'orange')
 
 plt.show()
