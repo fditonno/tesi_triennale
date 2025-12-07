@@ -9,8 +9,8 @@ import equazione_differenziale as ode
 class GW: #onda gravitazionale
     def __init__(self):
         #parametri relativi all'onda
-        self.m = -0.5e6/3e-5
-        self.q = 5e6 + 2.5e5
+        self.m = 0.5e6/3e-5
+        self.q = 5e6 - 2.5e5
         self.fase_iniziale = 0 #fase al tempo iniziale (radianti)
 
     def frequenza(self, t): #funzione che descrive la variazione della frequenza dell'onda nel tempo
@@ -108,7 +108,7 @@ ax[0].plot(x, y, color = 'green')
 
 #linea che corrisponde alla frequenza di risonanza
 i=0
-while(2*np.pi*y[i] > cristallo.omega):
+while(2*np.pi*y[i] < cristallo.omega):
     indice_linea = i
     i = i+1
 x_linea = np.mean([x[indice_linea], x[indice_linea+1]])

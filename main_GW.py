@@ -159,7 +159,6 @@ ax[1].legend(loc='upper left')
 
 #spettrogramma
 fig, ax = plt.subplots (nrows = 1, ncols = 1)
-ax.set_title("Spettrogramma del segnale in corrente")
 ax.set_xlabel("t - t_merging [s]")
 ax.grid(True)
 frequenza, tempi, Sxx = spectrogram(np.array(I), N/(t_fine-t_inizio), scaling='spectrum', mode='magnitude', window = 'hann', nperseg=32768, nfft = 32768, noverlap=32768*8//10)

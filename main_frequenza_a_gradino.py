@@ -9,7 +9,8 @@ class GW: #onda gravitazionale
     def __init__(self):
         #parametri relativi all'onda
         self.inizio = [0, 5e-6, 10e-6, 15e-6, 20e-6, 25e-6, 30e-6, 35e-6] #tempi di inizio dei segnali monocromatici (s)
-        self.pulsazione = [2*np.pi*4.6e6, 2*np.pi*4.8e6, 2*np.pi*4.9e6, -2*np.pi*5e6, -2*np.pi*5.1e6, 2*np.pi*5.2e6, 2*np.pi*5.4e6] #pulsazioni (Hz)
+        #self.pulsazione = [2*np.pi*4.6e6, 2*np.pi*4.8e6, 2*np.pi*4.9e6, -2*np.pi*5e6, -2*np.pi*5.1e6, 2*np.pi*5.2e6, 2*np.pi*5.4e6] #pulsazioni (Hz)
+        self.pulsazione = [2*np.pi*5.4e6, 2*np.pi*5.2e6, 2*np.pi*5.1e6, -2*np.pi*5e6, -2*np.pi*4.9e6, 2*np.pi*4.8e6, 2*np.pi*4.6e6] #pulsazioni (Hz)
         self.ampiezza = [1e-21, 1e-21, 1e-21, 1e-21, 1e-21, 1e-21, 1e-21] #ampiezze (strain)
         self.fase = -np.pi/2 #fase (radianti)
 
