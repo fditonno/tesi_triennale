@@ -1,4 +1,4 @@
-#in questo file simulo il segnale generato dalla fusione di 2 buchi neri con una massa di 4e-3 masse solari ad una distanza di 1e5 anni luce
+#in questo file simulo il segnale generato dalla fusione di 2 buchi neri con una massa di 2.2e-3 masse solari ad una distanza di 1e5 anni luce considerando più modi di vibrazione
 
 import matplotlib.pyplot as plt
 import numpy as np
