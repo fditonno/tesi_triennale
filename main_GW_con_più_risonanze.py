@@ -87,23 +87,23 @@ class BAW: #classe che descrive le proprietà del cristallo e del modo di vibraz
 
 
 #parametri dell'onda gravitazionale
-ma = 4e-3 * M_sol #massa del primo oggetto (Kg)
-mb = 4e-3 * M_sol #massa del secondo oggetto (Kg)
+ma = 2.2e-3 * M_sol #massa del primo oggetto (Kg)
+mb = 2.2e-3 * M_sol #massa del secondo oggetto (Kg)
 D = 1e5 * ly #distanza dal sistema binario (m)
-T = 31e-6 #tempo in cui avviene la funzione degli oggetti (s)
+T = 36e-6 #tempo in cui avviene la funzione degli oggetti (s)
 fase_iniziale = 0 #fase a t=t_inizio (radianti)
 
 #parametri del BAW
 d = 1e-3 #spessore del cristallo (m)
-n = 3 #n del modo di vibrazione (m=0, p=0, n dispari)
-omega = 2*np.pi*5e6 #pulsazione del modo di vibrazione (Hz)
-gamma = 2*np.pi*5e6/1e7 #coefficente di smorzamento del modo di vibrazione(Hz)
+n = [3, 5, 7] #n dei modi di vibrazione (m=0, p=0, n dispari)
+omega = [2*np.pi*5.168e6, 2*np.pi*8.613e6, 2*np.pi*1.206e7] #pulsazioni dei modi di vibrazione (Hz)
+Q = [6.81e6, 1.81e7, 2.53e7] #quality factor dei modi di vibrazione
 eta_x = 0.1 #trapping parameter asse x (adimensionale)
 eta_y = 0.1 #trapping parameter asse y (adimensionale)
 k = 1e-2 #coefficiente di accoppiamento elettromeccanico (C/m)
 
 #valori iniziali
-t_fine = 30e-6 #tempo di fine (s)
+t_fine = 35e-6 #tempo di fine (s)
 t_inizio = 0 #tempo di inizio (s)
 B_0 = 0 #B(t_inzio) (m)
 dB_0 = 0 #B'(t_inzio) (m/s)
@@ -113,12 +113,25 @@ N = 1000000 #numero di punti in cui si vuole la soluzione, non influisce sulla p
 rtol = 1e-8 #errore relativo massimo che si vuole sui punti della soluzione (1e-8 è il valore che sembra funzionare meglio)
 atol = rtol*1e-24 #errore assoluto massimo che si vuole sui punti della soluzione (m)
 
-
-#calcolo B e I
 onda = GW(ma, mb, D, T, fase_iniziale)
-cristallo = BAW(d, n, omega, gamma, eta_x, eta_y, k)
-t, B, dB = ode.risolvi_RK(t_fine, t_inizio, B_0, dB_0, N, rtol, atol, onda, cristallo) #calcolo la parte temporale del displacement (B) e la sua derivata rispetto al tempo (dB)
-I = cristallo.corrente(dB) #calcolo la corrente prodotta dal cristallo
+B = np.zeros(N)
+I = np.zeros(N)
+scarto = np.zeros(N)
+somma_scarto = 0
+cont = False
+for i in range(len(n)):
+    #calcolo B e I
+    cristallo = BAW(d, n[i], omega[i], omega[i]/Q[i], eta_x, eta_y, k)
+    t, B_i, dB_i = ode.risolvi_RK(t_fine, t_inizio, B_0, dB_0, N, rtol, atol, onda, cristallo) #calcolo la parte temporale del displacement (B) e la sua derivata rispetto al tempo (dB)
+    I_i = cristallo.corrente(dB_i) #calcolo la corrente prodotta dal cristallo
+    scarto_i, somma_scarto_i = ode.scarto(t, B_i, dB_i, onda, cristallo) #lo scarto è circa sovrastimato di un'ordine di grandezza usando N=1000000
+    
+    #sommo le grandezze punto per punto
+    for j in range(N):
+        B[j] = B[j] + B_i[j]
+        I[j] = I[j] + I_i[j]
+        scarto[j] = np.sqrt(scarto[j]**2 + scarto_i[j]**2)
+    somma_scarto = np.sqrt(somma_scarto**2 + somma_scarto_i**2)
 
 
 #grafici dell'onda gravitazioale
@@ -142,14 +155,23 @@ for i in x:
     y.append(onda.frequenza(i))
 ax[0].plot(x-onda.T, y, color = 'green')
 
-#linea che corrisponde alla frequenza di risonanza
-i=0
-while(2*np.pi*y[i] < cristallo.omega):
-    indice_linea = i
-    i = i+1
-x_linea = np.mean([x[indice_linea], x[indice_linea+1]])
-ax[0].axvline(x_linea-onda.T, linestyle='--', color = 'red', label="risonanza")
-ax[1].axvline(x_linea-onda.T, linestyle='--', color = 'red', label="risonanza")
+#linee che corrispondono alle frequenze di risonanza
+x_linee = []
+for omega_n in omega:
+    i=0
+    while(2*np.pi*y[i] < omega_n):
+        indice_linea = i
+        i = i+1
+    x_linee.append(np.mean([x[indice_linea], x[indice_linea+1]]))
+first = True
+for x_linea in x_linee:
+    if first:
+        ax[0].axvline(x_linea-onda.T, linestyle='--', color = 'red', label="risonanze")
+        ax[1].axvline(x_linea-onda.T, linestyle='--', color = 'red', label="risonanze")
+        first = False
+    else:
+        ax[0].axvline(x_linea-onda.T, linestyle='--', color = 'red')
+        ax[1].axvline(x_linea-onda.T, linestyle='--', color = 'red')
 ax[0].legend(loc='upper left')
 ax[1].legend(loc='upper left')
 
@@ -162,14 +184,26 @@ ax[1].set_xlabel("t - t_merging [s]")
 ax[0].set_ylabel("Displacement [m]") #B ha l'unità di misura di una lunghezza invece U è adimensionale
 ax[0].grid(True)
 ax[0].plot(t-onda.T, B, color = 'blue')
-ax[0].axvline(x_linea-onda.T, linestyle='--', color = 'red', label="risonanza")
+first = True
+for x_linea in x_linee:
+    if first:
+        ax[0].axvline(x_linea-onda.T, linestyle='--', color = 'red', label="risonanze")
+        first = False
+    else:
+        ax[0].axvline(x_linea-onda.T, linestyle='--', color = 'red')
 ax[0].legend(loc='upper left')
 
 #grafico della corrente
 ax[1].set_ylabel("Corrente [A]")
 ax[1].grid(True)
 ax[1].plot(t-onda.T, I, color = 'blue')
-ax[1].axvline(x_linea-onda.T, linestyle='--', color = 'red', label="risonanza")
+first = True
+for x_linea in x_linee:
+    if first:
+        ax[1].axvline(x_linea-onda.T, linestyle='--', color = 'red', label="risonanze")
+        first = False
+    else:
+        ax[1].axvline(x_linea-onda.T, linestyle='--', color = 'red')
 ax[1].legend(loc='upper left')
 
 #spettrogramma
@@ -182,39 +216,23 @@ ax.set_xlim([t_inizio-onda.T, t_fine-onda.T])
 ax.set_ylim([0, 1.5e7])
 pcm = ax.pcolormesh(tempi-onda.T, frequenza, Sxx, shading='gouraud') #norm=LogNorm()
 fig.colorbar(pcm, ax=ax, label='Ampiezza [A]')
-ax.axvline(x_linea-onda.T, linestyle='--', color = 'red', label="risonanza")
+first = True
+for x_linea in x_linee:
+    if first:
+        ax.axvline(x_linea-onda.T, linestyle='--', color = 'red', label="risonanze")
+        first = False
+    else:
+        ax.axvline(x_linea-onda.T, linestyle='--', color = 'red')
 ax.plot(x-onda.T, y, color = 'green', label="frequenza dell'onda")
 ax.legend(loc='upper left')
 
-'''
-#spettrogramma strano
-n_t = 100
-x = []
-y = []
-for i in range(0, N-n_t, n_t):
-    I_fetta = I[i : i+n_t]
-    t_fetta = t[i : i+n_t]
-    ampiezze = np.abs(fft(I_fetta))
-    frequenze = fftfreq(n_t, (t_fetta[-1] - t_fetta[0])/(n_t - 1))
-    mask = frequenze >= 0
-    ampiezze = ampiezze[mask]
-    frequenze = frequenze[mask]
-    y.append(np.average(frequenze, weights=ampiezze))
-    x.append(t_fetta.mean())
-fig, ax = plt.subplots()
-ax.plot(x, y, 'o')
-ax.set_xlabel("t - t_merging [s]")
-ax.set_ylabel("frequenza media [Hz]")
-'''
-
 
 #grafico dello scarto
-y, scarto = ode.scarto(t, B, dB, onda, cristallo) #lo scarto è circa sovrastimato di un'ordine di grandezza usando N=1000000
-print(scarto)
+print(somma_scarto)
 fig, ax = plt.subplots (nrows = 1, ncols = 1)
 ax.set_xlabel("t - t_merging [s]")
 ax.set_yscale("log")
 ax.set_ylabel("Scarto relativo")
-ax.plot(t-onda.T, y, color = 'orange')
+ax.plot(t-onda.T, scarto, color = 'orange')
 
 plt.show()
